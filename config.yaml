@@ -1,0 +1,72 @@
+sources:
+  registry: build-harbor.alauda.cn
+applications:
+  - name: app1
+    version: v1
+  - name: app2
+    version: v1
+  - name: app3
+    version: v1
+packages:
+  #部署用组件
+  - name: install
+    type: file
+    version: xx
+    path: ./install.sh
+    destination: install.sh
+  - name: pre-install
+    type: file
+    version: xx
+    path: ./pre-install.sh
+    destination: res/pre-install.sh
+  - name: post-install
+    type: file
+    version: xx
+    path: ./post-install.sh
+    destination: res/post-install.sh
+  - name: show-usage
+    type: file
+    version: xx
+    path: ./show-usage.sh
+    destination: res/show-usage.sh
+  - name: config
+    type: file
+    version: xx
+    path: ./config.yaml
+    destination: res/config.yaml
+  #定制组件
+  - name: kubectl-artifact-arm64
+    type: file
+    version: xx
+    path: res/kubectl-artifact-arm64
+    destination: res/kubectl-artifact-arm64
+  - name: kubectl-artifact-x86
+    type: file
+    version: xx
+    path: res/kubectl-artifact-x86
+    destination: res/kubectl-artifact-x86
+  - name: post-install
+    type: file
+    version: xx
+    path: ./post-install.sh
+    destination: res/post-install.sh
+  - name: activemq_operator
+    type: image
+    version: v1.0.24
+    path: solutions/activemq-operator
+    destination: ignore
+  - name: zookeeper
+    type: image
+    version: v3.8.0
+    path: solutions/zookeeper
+    destination: ignore
+  - name: activemq
+    type: image
+    version: v5.15.4
+    path: solutions/activemq
+    destination: ignore
+  - name: activemq-operator-bundle
+    type: image
+    version: v1.0.24
+    path: solutions/activemq-operator-bundle
+    destination: ignore

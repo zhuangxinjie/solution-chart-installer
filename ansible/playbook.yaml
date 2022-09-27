@@ -1,0 +1,54 @@
+- hosts: all
+  remote_user: root
+  vars:
+    base_dir: "/root"
+    s3_get: '1'
+    clear_artifact: '1'
+    clear_src: '1'
+    clear_dest: '1'
+    artifact_name: 'activemq-operator'
+    package_name: "amq-operator-installer"
+    package_version: "v1.0.0"
+    package_arch: "all"
+    package_src: "{{ base_dir }}/{{ package_name }}-{{ package_version }}-{{ package_arch }}.tar"
+    package_dest: "{{ base_dir }}/{{ package_name }}"
+  tasks:
+  - name: Remove exists tar file
+    ansible.builtin.file:
+      path: "{{ package_src }}"
+      state: absent
+    when: clear_src is defined and clear_src == '1'
+  - name: Remove exists unarchived directory
+    ansible.builtin.file:
+      path: "{{ package_dest }}"
+      state: absent
+    when: clear_dest is defined and clear_dest == '1'
+  - name: s3cmd get
+    ansible.builtin.command:
+      argv:
+        - s3cmd
+        - get
+        - "s3://{{ package_name }}/{{ package_name }}-{{ package_version }}-{{ package_arch }}.tar"
+    when: s3_get is defined and s3_get == '1'
+  - name: Unarchive tar file
+    ansible.builtin.unarchive:
+      src: "{{ package_src }}"
+      dest: "{{ base_dir }}"
+      remote_src: yes
+  - name: Delete artifact before install
+    ansible.builtin.command:
+      argv:
+        - kubectl
+        - delete
+        - artifact
+        - "{{ artifact_name }}"
+        - -n
+        - cpaas-system
+        - --ignore-not-found
+    when: s3_get is defined and s3_get == '1'
+  - name: Execute install.sh
+    ansible.builtin.command:
+      argv:
+        - bash
+        - install.sh
+      chdir: "{{ package_dest }}"
