@@ -1,12 +1,8 @@
 sources:
   registry: build-harbor.alauda.cn
 applications:
-  - name: app1
-    version: v1
-  - name: app2
-    version: v1
-  - name: app3
-    version: v1
+  - name: acp-client
+    version: v1.0.5
 packages:
   #部署用组件
   - name: install
