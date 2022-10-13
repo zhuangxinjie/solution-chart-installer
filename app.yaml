@@ -1,0 +1,9 @@
+applications:
+  - name: nginx
+    version: v1.0.3
+  - name: acp-client2
+    version: v1.0.5
+  - name: acp-client3
+    version: v1.0.5
+  - name: acp-client4
+    version: v1.0.5
