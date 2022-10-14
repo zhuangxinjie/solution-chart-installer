@@ -1,6 +1,5 @@
 sources:
   registry: build-harbor.alauda.cn
-
 packages:
   #部署用组件
   - name: install
