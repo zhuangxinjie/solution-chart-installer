@@ -5,3 +5,5 @@ applications:
     version: v1.0.3
   - name: nginx3
     version: v1.0.4
+  - name: provider
+    version: v1.0.2
