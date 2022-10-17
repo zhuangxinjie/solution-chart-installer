@@ -2,6 +2,6 @@ applications:
   - name: nginx
     version: v1.0.3
   - name: nginx2
-    version: v1.0.5
+    version: v1.0.3
   - name: nginx3
-    version: v1.0.5
+    version: v1.0.4
