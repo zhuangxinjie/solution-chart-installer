@@ -1,9 +1,7 @@
 applications:
-  - name: nginx
-    version: v1.0.3
-  - name: nginx2
-    version: v1.0.3
-  - name: nginx3
-    version: v1.0.4
-  - name: provider
+  - name: acp-client
+    version: v1.0.1
+  - name: bookinfo
     version: v1.0.2
+  - name: reviews
+    version: v1.0.1
