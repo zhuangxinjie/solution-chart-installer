@@ -87,7 +87,7 @@ function start_sync_image() {
 ##部署apprelease
 # function start_deploy_app_release() {
 #     echo "部署app release"
-    
+
 #     sed -i "s/DEST_NAMESPACE/$NAMESPACE/g" res/apprelease/*
 #     sed -i "s/REGISTRY/$REGISTRY/g" res/apprelease/*
 #     sed -i "s/STORAGE_CLASS/$STORAGE_CLASS/g" res/apprelease/*

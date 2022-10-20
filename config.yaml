@@ -1,5 +1,5 @@
 sources:
-  registry: build-harbor.alauda.cn
+  registry: 192.168.137.61:30011
 packages:
   #部署用组件
   - name: install
@@ -43,13 +43,4 @@ packages:
     version: xx
     path: ./post-install.sh
     destination: res/post-install.sh
-  - name: reviews
-    type: image
-    version: v2-1.9.0
-    path: demo/bookinfo/reviews
-    destination: ignore
-  - name: test-image
-    type: image
-    version: v3.4
-    path: demo/bookinfo/test-image
-    destination: ignore
+
