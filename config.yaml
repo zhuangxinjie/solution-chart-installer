@@ -43,23 +43,13 @@ packages:
     version: xx
     path: ./post-install.sh
     destination: res/post-install.sh
-  - name: activemq_operator
+  - name: reviews
     type: image
-    version: v1.0.24
-    path: solutions/activemq-operator
+    version: v2-1.9.0
+    path: demo/bookinfo/reviews
     destination: ignore
-  - name: zookeeper
+  - name: test-image
     type: image
-    version: v3.8.0
-    path: solutions/zookeeper
-    destination: ignore
-  - name: activemq
-    type: image
-    version: v5.15.4
-    path: solutions/activemq
-    destination: ignore
-  - name: activemq-operator-bundle
-    type: image
-    version: v1.0.24
-    path: solutions/activemq-operator-bundle
+    version: v3.4
+    path: demo/bookinfo/test-image
     destination: ignore
