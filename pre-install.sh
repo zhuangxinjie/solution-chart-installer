@@ -1,108 +1,85 @@
 #!/bin/bash
 
-#部署 amq operator
-function install_activemq_operator() {
-  export NAME="activemq-operator"                            # 名称
-  export DISPLAYNAME="activemq-operator"                     # 页面展示名称
-  export DESCRIPTION="activemq operator bundle images"       # 描述
-  export REPOSITORY="solutions/activemq-operator-bundle"           # 仓库项目路径
-  export VERSION="v1.0.24" # 版本号
+CHARTREPO=$1
+ACP_DOMAIN=$2
+NAMESPACE=$3
+CREATE_CHARTREPO=$4
+API_TOKEN=$5
 
-  k_num=$(kubectl get Artifact -n ${NAMESPACE} --ignore-not-found --no-headers ${NAME}|wc -l)
+CHART_NAME=`ls ./res | grep tgz`
 
-  if [ $k_num -le 0 ]; then
+echo CHART_NAME:$CHART_NAME
 
-cat << EOF | kubectl create -f -
-apiVersion: app.alauda.io/v1alpha1
-kind: Artifact
-metadata:
-  name: ${NAME}
-  namespace: cpaas-system
-  labels:
-    cpaas.io/library: platform
-spec:
-  artifactVersionSelector:
-    matchLabels:
-      cpaas.io/artifact-version: ${NAME}
-  displayName: ${DISPLAYNAME}
-  description: ${DESCRIPTION}
-  registry: ${REGISTRY}
-  repository:  ${REPOSITORY}
-  type: bundle
-  present: true
-  imagePullSecrets:
-    - default
-EOF
-    
-  fi
+echo  CHARTREPO:${CHARTREPO},ACP_DOMAIN:${ACP_DOMAIN},NAMESPACE:${NAMESPACE},CREATE_CHARTREPO:${CREATE_CHARTREPO},API_TOKEN:${API_TOKEN}
+script_dir=$(cd $(dirname $0);pwd)
 
-  chmod +x res/kubectl-artifact-${ARCH}
-  cp res/kubectl-artifact-${ARCH} $(dirname $(which kubectl))/kubectl-artifact
+echo dir:${script_dir}
 
-  kubectl artifact createVersion --artifact ${NAME}  --tag="${VERSION}" --namespace cpaas-system
-
-  kubectl get artifactversion -A | grep  ${NAME}
-
-  kubectl get pod -A | grep catalog | awk '{print "kubectl delete pod -n ", $1, $2}' | bash
-
-
-  PM=$(kubectl get PackageManifest --ignore-not-found --no-headers|grep ${NAME})
-  while [ "$PM" = "" ]
-  do
-    echo "${NAME}.${VERSION}上架中，请等待。。。"
-    sleep 3
-    PM=$(kubectl get PackageManifest --ignore-not-found --no-headers|grep ${NAME})
-  done
-
-EXISTS_KEY=$(kubectl get resourcepatch --ignore-not-found operator-images-${NAME}-patch)
-  if [ "$EXISTS_KEY" ]; then
-    echo "resourcepatch operator-images-${NAME}-patch exists...ignored."
-  else
-    echo 'Patching operator-images...'
-    kubectl get cm -o yaml -n cpaas-system operator-images>/tmp/operator-images.yaml
-    sed -i '0,/^.*images\.yaml:/d' /tmp/operator-images.yaml
-    sed -i '/^kind: ConfigMap$/,$d' /tmp/operator-images.yaml
-    sed -i 's/^/    /' /tmp/operator-images.yaml
-
-cat <<EOF > /tmp/resource-patch.yaml
-apiVersion: operator.alauda.io/v1alpha1
-kind: ResourcePatch
-metadata:
-  finalizers:
-    - resourcepatch
-  name: operator-images-${NAME}-patch
-spec:
-  jsonPatch:
-    - op: replace
-      path: /data/images.yaml
-      value: |
-EOF
-  cat /tmp/operator-images.yaml>>/tmp/resource-patch.yaml
-cat <<EOF >> /tmp/resource-patch.yaml
-          activemq:
-            - build-harbor.alauda.cn/solutions/activemq-operator:v1.0.11
-            - build-harbor.alauda.cn/solutions/zookeeper:v3.8.0
-            - build-harbor.alauda.cn/solutions/activemq:v5.15.4
-  release: cpaas-system/olm
-  target:
-    apiVersion: v1
-    kind: ConfigMap
-    name: operator-images
-    namespace: cpaas-system
-EOF
-cat <<EOF >> /tmp/resource-patch.yaml
-  release: cpaas-system/olm
-  target:
-    apiVersion: v1
-    kind: ConfigMap
-    name: operator-images
-    namespace: cpaas-system
-EOF
-  kubectl apply -f /tmp/resource-patch.yaml || echo 'operator-images Patched'
-  fi
-
-  echo "${NAME}.${VERSION}上架完成 【OK】"
-
+#创建 chart_repo
+create_chart_repo() {
+  echo "开始创建 chart 仓库"
+  curl -k --request POST \
+    --url https://$ACP_DOMAIN/catalog/v1/chartrepos \
+    --header 'Authorization:Bearer '$API_TOKEN’ \
+    --header 'Content-Type: application/json' \
+    --data '{
+      "apiVersion": "v1",
+      "kind": "ChartRepoCreate",
+      "metadata": {
+        "name": "'${CHARTREPO}'",
+        "namespace": "'${NAMESPACE}'"
+      },
+      "spec": {
+        "chartRepo": {
+          "apiVersion": "app.alauda.io/v1beta1",
+          "kind": "ChartRepo",
+          "metadata": {
+            "name": "'${CHARTREPO}'",
+            "namespace": "'${NAMESPACE}'",
+            "labels": {
+              "project.cpaas.io/catalog": "true"
+            },
+            "annotations": {
+              "cpaas.io/description": ""
+            }
+          },
+          "spec": {
+            "type": "Local",
+            "url": null,
+            "source": null
+          }
+        },
+        "secret": null
+      }
+    }'
+  echo "chart 仓库创建成功"
+}
+# # 上传 chart 包
+upload_chart() {
+  echo "开始上传chart"
+  curl -k --request POST \
+  > --url https://$ACP_DOMAIN/catalog/v1/chartrepos/${NAMESPACE}/${CHARTREPO}/charts \
+  > --header 'Authorization:Bearer '$API_TOKEN \
+  > --data-binary @"${script_dir}/res/${CHART_NAME}"
+  {
+  "name": "solution-chart",
+  "version": "1.0.1",
+  "description": "A Helm chart for Kubernetes",
+  "apiVersion": "v2",
+  "appVersion": "1.0.1",
+  "type": "application"
+  }
+  echo "上传chart结束"
 }
 
-install_activemq_operator
+upload_chart_operator(){
+
+  if [ $CREATE_CHARTREPO == "true" ];
+    then
+    echo "执行create_chart_repo 方法 "
+    create_chart_repo
+  fi
+  upload_chart
+}
+
+upload_chart_operator

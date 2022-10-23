@@ -1,6 +1,17 @@
 #!/bin/bash
 LANG=zh_CN.UTF-8
 
+HARBORURL=192.168.184.20:32071
+HARBORUSERNAME=admin
+HARBORPASSWORD=Harbor12345
+CHARTREPO=test
+ACPURL=192.168.182.141
+NAMESPACE=chuangxing-test
+CREATE_CHARTREPO=true   # 如果已存在char仓库 就不需要再创建  填 false 。如果不存在 填 true
+TOKEN=eyJhbGciOiJSUzI1NiIsImtpZCI6ImJhMTg0YzlmYjE5OWExMGNmYTRlYTE3ZjQyNTI5Y2I5MzdjNmRiMDQiLCJ0eXAiOiJKV1QifQ.eyJqdGkiOiI5YjdmNTRiZi1lMzY5LTQzNGQtOGJjZi1lNGRkZWJlNWU0NDYiLCJpYXQiOjE2NjYzNTA5NDUsInR5cCI6IkFjY2Vzc1Rva2VuIiwiZW1haWwiOiJhZG1pbkBjcGFhcy5pbyJ9.CCkVZ3tl23XDuxcxlJbnyjr3qvdNBMnhlx2_UuOLhQUr4pw8WLeyflc_KXmhMo5pCp6q3tVnZ_MxCi7kdsn1iJEDAoZbNQxMpCyXEEaNEF1dXJmpgSyX7ffeA3ddYvRTJvM-AFpyTMwOys_QKlCxl4QkUCAfqh4ZXSoDayPFPXJyz4l8kEbDohkSiR6emLApEZrB_m04NE7X5nc9wWtOXB4oPfVokgNsdEnIiG33p9HSSlt_TUMaDptKtWTamRIvhXoRyZhv2HdpbfJFomIOZ2mjvLUWa2r2W_FDPyKfMFY9R740BAlWwv28lFEgu8KuoOUm1rH-74TXZZcgYf_Psw
+
+echo harborurl：${HARBORURL},harborusername:${HARBORUSERNAME},harborpassword:${HARBORPASSWORD},chartrepo：${CHARTREPO},acpurl:${ACPURL},namespace:${NAMESPACE},token:${TOKEN},CREATE_CHARTREPO:${CREATE_CHARTREPO}
+
 set -o nounset
 set -o pipefail
 
@@ -14,8 +25,8 @@ export PATH='/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin'
 
 TEMP=`getopt -o a --long arch:,registry:,registry-auth:,namespace:,storageclass: -- "$@"`
 eval set -- "$TEMP"
-REGISTRY=$(kubectl get cm -n kube-public global-info  -o yaml |  awk '/^  registryAddress:/{print $NF}')
-NAMESPACE="cpaas-system"
+REGISTRY=${HARBORURL}
+#NAMESPACE="cpaas-system"
 STORAGE_CLASS=""
 ARCH="arm"
 TARGET_CREDS=""
@@ -23,29 +34,29 @@ TARGET_INSECURE="false"
 TARGET_PLAIN_HTTP="true"
 
 script_dir=$(cd $(dirname $0);pwd)
-#. $script_dir/res/show-usage.sh
+# #. $script_dir/res/show-usage.sh
 
 # whether registry has auth
-cat /etc/kubernetes/manifests/registry.yaml | grep "/etc/kubernetes/registry/auth.yaml" > /dev/null 2>&1
+
 if [ $? == 0 ]; then
-    REGISTRY_ADMIN=$(kubectl get secret -n cpaas-system registry-admin > /dev/null 2>&1)
-    REGISTRY_USERNAME=$(kubectl get secret -n cpaas-system registry-admin -o jsonpath='{.data.username}' | base64 -d)
-    REGISTRY_PASSWORD=$(kubectl get secret -n cpaas-system registry-admin -o jsonpath='{.data.password}' | base64 -d)
+    REGISTRY_USERNAME=${HARBORUSERNAME}
+    REGISTRY_PASSWORD=${HARBORPASSWORD}
     TARGET_CREDS=$(echo -n "$REGISTRY_USERNAME:$REGISTRY_PASSWORD" | base64 -w 0)
     TARGET_INSECURE="true"
     TARGET_PLAIN_HTTP="false"
     docker login ${REGISTRY} -u ${REGISTRY_USERNAME} -p ${REGISTRY_PASSWORD} > /dev/null 2>&1
 fi
 
-REGISTRY_VERSION=$(cat /etc/kubernetes/manifests/registry.yaml|sed -nr 's/^.*registry:(.*)$/\1/p')
 
-REGISTRY_IMAGE="$REGISTRY/ait/registry:$REGISTRY_VERSION"
+REGISTRY_IMAGE="$REGISTRY/ait/registry:2"
+
 REGISTRY_OPTIONS="-d --restart=always --name upgrade-registry
+
 -p 1234:5000
 -v $(pwd)/registry:/var/lib/registry
 "
 
-SYNC_IMAGE_VERSION="v3.0.2"
+SYNC_IMAGE_VERSION="v3.0.4"
 
 function get_arch() {
   os_arch=$(uname -m)
@@ -84,48 +95,19 @@ function start_sync_image() {
     echo "同步镜像成功"
 }
 
-##部署apprelease
-# function start_deploy_app_release() {
-#     echo "部署app release"
 
-#     sed -i "s/DEST_NAMESPACE/$NAMESPACE/g" res/apprelease/*
-#     sed -i "s/REGISTRY/$REGISTRY/g" res/apprelease/*
-#     sed -i "s/STORAGE_CLASS/$STORAGE_CLASS/g" res/apprelease/*
-#     kubectl apply -f res/apprelease -n $NAMESPACE
-#     sleep 1
-#     all_num=$(kubectl get apprelease -l customization=true -n $NAMESPACE --ignore-not-found|wc -l)
-#     all=$((all_num - 1))
-#     release_name=$(grep 'name: .*' res/apprelease/*|head -n 1 |awk '{print $2}')
-#     while true
-#     do
-#         ready_num=$(kubectl get apprelease $release_name -n $NAMESPACE --ignore-not-found| grep -w Ready| wc -l)
-#         ready=$((ready_num))
-#         if [ $ready -eq $all ]
-#         then
-#             echo "部署完成！"
-#             echo "****** $release_name ******"
-#             kubectl get po -l app.kubernetes.io/instance=$release_name -n $NAMESPACE
-#             break
-#         else
-#             kubectl get apprelease $release_name -n $NAMESPACE| grep -vw Ready
-#             echo "部署中，请等待"
-#             echo "****** $release_name ******"
-#             kubectl get po -l app.kubernetes.io/instance=$release_name -n $NAMESPACE
-#             sleep 3
-#         fi
-#     done
 
-# }
-
-#停止运行临时registry
+停止运行临时registry
 function clean_up() {
-    kubectl get apprelease -l customization=true -n $NAMESPACE
+#    kubectl get apprelease -l customization=true -n $NAMESPACE
     docker rm -f upgrade-registry
 }
 
 start_registry
 start_sync_image
-. $script_dir/res/pre-install.sh   // 调用应用商店接口，上传chart包
-#start_deploy_app_release
-clean_up
+
+ . $script_dir/res/pre-install.sh  ${CHARTREPO} ${ACPURL} ${NAMESPACE} ${CREATE_CHARTREPO} ${TOKEN} // 调用应用商店接口，上传chart包
+# #start_deploy_app_release
+
+# clean_up
 . $script_dir/res/post-install.sh
