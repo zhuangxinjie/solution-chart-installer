@@ -2,9 +2,8 @@
 
 CHARTREPO=$1
 ACP_DOMAIN=$2
-NAMESPACE=$3
-CREATE_CHARTREPO=$4
-API_TOKEN=$5
+CREATE_CHARTREPO=$3
+API_TOKEN=$4
 
 CHART_NAME=`ls ./res | grep tgz`
 
@@ -20,14 +19,14 @@ create_chart_repo() {
   echo "开始创建 chart 仓库"
   curl -k --request POST \
     --url https://$ACP_DOMAIN/catalog/v1/chartrepos \
-    --header 'Authorization:Bearer '$API_TOKEN’ \
+    --header 'Authorization:Bearer '$API_TOKEN \
     --header 'Content-Type: application/json' \
     --data '{
       "apiVersion": "v1",
       "kind": "ChartRepoCreate",
       "metadata": {
         "name": "'${CHARTREPO}'",
-        "namespace": "'${NAMESPACE}'"
+        "namespace": "cpaas-system"
       },
       "spec": {
         "chartRepo": {
@@ -35,7 +34,7 @@ create_chart_repo() {
           "kind": "ChartRepo",
           "metadata": {
             "name": "'${CHARTREPO}'",
-            "namespace": "'${NAMESPACE}'",
+            "namespace": "cpaas-system",
             "labels": {
               "project.cpaas.io/catalog": "true"
             },
@@ -58,17 +57,10 @@ create_chart_repo() {
 upload_chart() {
   echo "开始上传chart"
   curl -k --request POST \
-  > --url https://$ACP_DOMAIN/catalog/v1/chartrepos/${NAMESPACE}/${CHARTREPO}/charts \
-  > --header 'Authorization:Bearer '$API_TOKEN \
-  > --data-binary @"${script_dir}/res/${CHART_NAME}"
-  {
-  "name": "solution-chart",
-  "version": "1.0.1",
-  "description": "A Helm chart for Kubernetes",
-  "apiVersion": "v2",
-  "appVersion": "1.0.1",
-  "type": "application"
-  }
+   --url https://$ACP_DOMAIN/catalog/v1/chartrepos/cpaas-system/${CHARTREPO}/charts \
+   --header 'Authorization:Bearer '$API_TOKEN \
+   --data-binary @"${script_dir}/res/${CHART_NAME}"
+
   echo "上传chart结束"
 }
 

@@ -4,9 +4,9 @@ LANG=zh_CN.UTF-8
 HARBORURL=192.168.184.20:32071
 HARBORUSERNAME=admin
 HARBORPASSWORD=Harbor12345
-CHARTREPO=test
+CHARTREPO=test1
 ACPURL=192.168.182.141
-NAMESPACE=chuangxing-test
+NAMESPACE=chuangxing
 CREATE_CHARTREPO=true   # 如果已存在char仓库 就不需要再创建  填 false 。如果不存在 填 true
 TOKEN=eyJhbGciOiJSUzI1NiIsImtpZCI6ImJhMTg0YzlmYjE5OWExMGNmYTRlYTE3ZjQyNTI5Y2I5MzdjNmRiMDQiLCJ0eXAiOiJKV1QifQ.eyJqdGkiOiI5YjdmNTRiZi1lMzY5LTQzNGQtOGJjZi1lNGRkZWJlNWU0NDYiLCJpYXQiOjE2NjYzNTA5NDUsInR5cCI6IkFjY2Vzc1Rva2VuIiwiZW1haWwiOiJhZG1pbkBjcGFhcy5pbyJ9.CCkVZ3tl23XDuxcxlJbnyjr3qvdNBMnhlx2_UuOLhQUr4pw8WLeyflc_KXmhMo5pCp6q3tVnZ_MxCi7kdsn1iJEDAoZbNQxMpCyXEEaNEF1dXJmpgSyX7ffeA3ddYvRTJvM-AFpyTMwOys_QKlCxl4QkUCAfqh4ZXSoDayPFPXJyz4l8kEbDohkSiR6emLApEZrB_m04NE7X5nc9wWtOXB4oPfVokgNsdEnIiG33p9HSSlt_TUMaDptKtWTamRIvhXoRyZhv2HdpbfJFomIOZ2mjvLUWa2r2W_FDPyKfMFY9R740BAlWwv28lFEgu8KuoOUm1rH-74TXZZcgYf_Psw
 
@@ -106,7 +106,7 @@ function clean_up() {
 start_registry
 start_sync_image
 
- . $script_dir/res/pre-install.sh  ${CHARTREPO} ${ACPURL} ${NAMESPACE} ${CREATE_CHARTREPO} ${TOKEN} // 调用应用商店接口，上传chart包
+ . $script_dir/res/pre-install.sh  ${CHARTREPO} ${ACPURL} ${CREATE_CHARTREPO} ${TOKEN} // 调用应用商店接口，上传chart包
 # #start_deploy_app_release
 
 # clean_up
