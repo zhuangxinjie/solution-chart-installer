@@ -1,0 +1,235 @@
+apiVersion: devops.alauda.io/v1alpha1
+kind: ClusterPipelineTaskTemplate
+metadata:
+  name: integration-chart
+  annotations:
+    displayName.zh-CN: 构建chart包
+    displayName.en: integration-chart
+    description.zh-CN: 构建某一命名空间下的私有chart部署包
+    description.en: integration-chart
+    readme.zh-CN: 构建某一命名空间下的私有chart部署包
+    readme.en: integration-chart
+    version: "3.8.10"
+  labels:
+    category: Build
+spec:
+  engine: gotpl
+  body: |+
+    script {
+        def config_file = "${env.WORKSPACE}/config.yaml"
+        container('package-chart'){
+            def newImage = [:]
+            newImage['name'] = "{{.imageRepositoryDeploy.repositoryPath}}"
+            def NEW_IMAGE = "${newImage.name}".split("/")
+            print(NEW_IMAGE[0])
+            sh """
+               cp -r /app/package/* . && ls && pwd 
+            """
+            def configYamlExit = fileExists(file: config_file)
+            if (configYamlExit) {
+                def config_repository_path = readYaml file: config_file
+                config_repository_path.sources.registry = NEW_IMAGE[0]
+                writeYaml file: config_file, data: config_repository_path, overwrite: true
+        
+                sh """
+                    cat ${env.WORKSPACE}/config.yaml && ls 
+                """
+            }
+            
+        }
+        def app_file = "${env.WORKSPACE}/app.yaml"
+        def values_file = "${env.WORKSPACE}/chart/values.yaml"
+        def chart_file = "${env.WORKSPACE}/chart/Chart.yaml"
+        def valuesYamlExits = fileExists(file: values_file)
+        def appYamlExits = fileExists(file: app_file)
+        def chartYamlExits = fileExists(file: chart_file)
+        def configYamlExits = fileExists(file: config_file)
+        if(appYamlExits){
+            def file_contents = readYaml file: app_file
+            if (file_contents.applications instanceof List && file_contents.applications.size() > 0) {
+                 echo "yaml contains ${file_contents.applications.size()} parameters"
+                 for ( int i=0;i < file_contents.applications.size(); i++ ) {
+                    def name = file_contents.applications[i].name
+                    def version =  file_contents.applications[i].version
+     
+                    sh """
+                         curl -k -H "Content-Type: application/json" -X POST -d '{"kind":"ApplicationChartPackage","apiVersion":"app.k8s.io/v1beta1","metadata":{"name":"${ name }","namespace":"{{ .namespace }}"},"spec":{"name":"${ name }","version":"${ version }","maintainers":[{"name":"新杰 庄","email":"xjzhuang@alauda.io"}]}}'  ${env.ACP_URL}/acp/v1/kubernetes/{{ .clusterName }}/namespaces/{{ .namespace }}/applications/${ name }/chartpackage -H"Authorization: Bearer ${env.ACP_TOKEN}" -o ${ name }-${ version }.tar.gz
+                         ls && tar -xvf ${ name }-${ version }.tar.gz && rm -rf ${ name }-${ version }.tar.gz && cat ${ name }/values.yaml | grep image > image.yaml && mkdir -p ./chart/charts/${ name } && cp -r ${ name }/* ./chart/charts/${ name } && rm -rf ${ name }
+                    """
+                     if(valuesYamlExits){
+                  
+                        def values = readYaml file: values_file
+                        sh """
+                           cat ${env.WORKSPACE}/chart/values.yaml 
+                        """
+                        def sonValuesYaml = "${env.WORKSPACE}/chart/charts/"+name+"/values.yaml"
+                        if (fileExists(file: sonValuesYaml)){
+                            def sonValues = readYaml file: sonValuesYaml
+                            def valuesMap = [:]
+                            if (values instanceof Map){
+                                values.put(name,sonValues)
+                                writeYaml file: values_file, data: values, overwrite: true
+                            } else {
+                                valuesMap.put(name,sonValues)
+                                writeYaml file: values_file, data: valuesMap, overwrite: true
+                            }
+                            sh """
+                               cat ${env.WORKSPACE}/chart/values.yaml 
+                            """
+                        }
+                     }
+                     if(chartYamlExits){
+                        def chart_file_contents = readYaml file: chart_file
+                       
+                        if (chart_file_contents.dependencies instanceof List) {
+                            def amap = ['name': name ,
+                                       'repository': 'file://./charts/'+name +'/',
+                                       'version': version ,
+                                       'condition': true]
+                            chart_file_contents.dependencies.add(amap)
+                        } else {
+                          print '==============='
+                          def dependencys = []
+                          def dep = ['name': name ,
+                                       'repository': 'file://./charts/'+name +'/',
+                                       'version': version ,
+                                       'condition': true]
+                          dependencys.add(dep)
+                          chart_file_contents.dependencies = dependencys
+                        }
+                        writeYaml file: chart_file, data: chart_file_contents, overwrite: true
+                     
+                        sh """
+                           cat ${env.WORKSPACE}/chart/Chart.yaml && ls && cat image.yaml
+                        """
+                        //读取镜像，写入config.yaml
+                        if (configYamlExits) {
+                            def image_file = "${env.WORKSPACE}/image.yaml"
+                            def imageYamlExits = fileExists(file: image_file)
+                            if (imageYamlExits){
+                       
+                                def data_info = readFile(file: image_file)
+                                def lines = data_info.readLines()
+                                for (line in lines) {
+                                    def s1 = line.trim()
+                                    def s2 = s1.replace("image:","").trim()
+                                    println(s2)
+                                    String[] str;
+                                    def imageInfo =  s2.split("/")
+                                    def imageName = imageInfo[imageInfo.size() - 1].split(":")[0]
+                                    def imageInfotag = imageInfo[imageInfo.size() - 1].split(":")[1]
+                                    def imagePath = ''
+                                        if (imageInfo.size() == 3){
+                                            imagePath = imageInfo[1] +'/'+imageName
+                                        } else if (imageInfo.size() == 2){
+                                            imagePath = imageInfo[0] +'/'+imageName
+                                        } else if (imageInfo.size() == 4){
+                                            imagePath = imageInfo[1]+'/'+imageInfo[2]+'/'+imageName
+                                        }else {
+                                            imagePath = imageName
+                                        }
+        
+                                    def image = ['name': imageName ,
+                                                   'type': 'image' ,
+                                                   'version': imageInfotag ,
+                                                   'path': imagePath,
+                                                   'destination': 'ignore']
+                                    def confg_file_contents = readYaml file: config_file 
+                                    confg_file_contents.packages.add(image)
+                                    writeYaml file: config_file, data: confg_file_contents, overwrite: true
+                                    sh """
+                                       cat ${env.WORKSPACE}/config.yaml && ls 
+                                    """
+                                }
+                                def image_file_contents = readYaml file: image_file  
+                                print(image_file_contents)
+                            }
+                            
+                        } else  { 
+                            print 'config.yaml is not exist'
+                        }
+                     }else{
+                         print 'chart/Chart.yaml not exists'
+                         
+                     }
+                 }
+               
+            } else {
+                print 'app.yaml Configuration error'
+            }
+            container('tools'){    
+                print 'start Execute the helm command'
+                sh '''
+                    pwd
+                    ls chart
+                    ls && cat chart/Chart.yaml
+                    helm3 version
+                    helm3 package  ./chart
+                    ls
+                 '''
+                if (configYamlExits) {
+                     def confg_read_file_contents = readYaml file: config_file 
+                     def chart_name = ''
+                     if (chartYamlExits){
+                        def chart_name_file_contents = readYaml file: chart_file 
+                        chart_name = chart_name_file_contents.name
+                        chart_version = chart_name_file_contents.version
+                     } else {
+                        chart_name = 'solution-chart'
+                     }
+                     def chart_package = ['name': chart_name ,
+                                  'type': 'file' ,
+                                  'version': 'xx' ,
+                                  'path': './'+chart_name+'-'+chart_version+'.tgz',
+                                  'destination': 'res/'+chart_name+'-'+chart_version+'.tgz']
+                     confg_read_file_contents.packages.add(chart_package)
+                     writeYaml file: config_file, data: confg_read_file_contents, overwrite: true
+                     sh """
+                         cat ${env.WORKSPACE}/config.yaml && ls 
+                     """
+                } 
+            }
+        } else {
+          print 'app.yaml does not exist'
+        }
+      
+    }
+
+  arguments:
+    - name: clusterName
+      schema:
+        type: string
+      display:
+        type: alauda.io/clustername
+        name:
+          zh-CN: "集群"
+          en: "cluster"
+        description:
+          zh-CN: "应用所在的集群"
+          en: "cluster"
+      required: true
+    - name: namespace
+      schema:
+        type: string
+      display:
+        type: alauda.io/namespace
+        name:
+          zh-CN: "命名空间"
+          en: "namespace"
+        description:
+          zh-CN: "应用所在的命名空间"
+          en: "namespace"
+        related: clusterName
+      required: true
+    - name: imageRepositoryDeploy
+      schema:
+        type: alauda.io/dockerimagerepositorypullmix
+      required: true
+      display:
+        type: alauda.io/dockerimagerepositorypullmix
+        name:
+          zh-CN: "镜像仓库"
+          en: Repository
+        description:
+          zh-CN: "选择或者输入镜像仓库"
+          en: "image repo"
