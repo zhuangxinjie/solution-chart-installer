@@ -9,7 +9,7 @@ metadata:
     description.en: integration-chart
     readme.zh-CN: 构建某一命名空间下的私有chart部署包
     readme.en: integration-chart
-    version: "3.8.10"
+    version: "3.8.14"
   labels:
     category: Build
 spec:
@@ -30,12 +30,11 @@ spec:
                 def config_repository_path = readYaml file: config_file
                 config_repository_path.sources.registry = NEW_IMAGE[0]
                 writeYaml file: config_file, data: config_repository_path, overwrite: true
-        
                 sh """
                     cat ${env.WORKSPACE}/config.yaml && ls 
                 """
             }
-            
+    
         }
         def app_file = "${env.WORKSPACE}/app.yaml"
         def values_file = "${env.WORKSPACE}/chart/values.yaml"
@@ -51,13 +50,13 @@ spec:
                  for ( int i=0;i < file_contents.applications.size(); i++ ) {
                     def name = file_contents.applications[i].name
                     def version =  file_contents.applications[i].version
-     
+    
                     sh """
                          curl -k -H "Content-Type: application/json" -X POST -d '{"kind":"ApplicationChartPackage","apiVersion":"app.k8s.io/v1beta1","metadata":{"name":"${ name }","namespace":"{{ .namespace }}"},"spec":{"name":"${ name }","version":"${ version }","maintainers":[{"name":"新杰 庄","email":"xjzhuang@alauda.io"}]}}'  ${env.ACP_URL}/acp/v1/kubernetes/{{ .clusterName }}/namespaces/{{ .namespace }}/applications/${ name }/chartpackage -H"Authorization: Bearer ${env.ACP_TOKEN}" -o ${ name }-${ version }.tar.gz
                          ls && tar -xvf ${ name }-${ version }.tar.gz && rm -rf ${ name }-${ version }.tar.gz && cat ${ name }/values.yaml | grep image > image.yaml && mkdir -p ./chart/charts/${ name } && cp -r ${ name }/* ./chart/charts/${ name } && rm -rf ${ name }
                     """
                      if(valuesYamlExits){
-                  
+    
                         def values = readYaml file: values_file
                         sh """
                            cat ${env.WORKSPACE}/chart/values.yaml 
@@ -80,7 +79,7 @@ spec:
                      }
                      if(chartYamlExits){
                         def chart_file_contents = readYaml file: chart_file
-                       
+    
                         if (chart_file_contents.dependencies instanceof List) {
                             def amap = ['name': name ,
                                        'repository': 'file://./charts/'+name +'/',
@@ -98,7 +97,7 @@ spec:
                           chart_file_contents.dependencies = dependencys
                         }
                         writeYaml file: chart_file, data: chart_file_contents, overwrite: true
-                     
+    
                         sh """
                            cat ${env.WORKSPACE}/chart/Chart.yaml && ls && cat image.yaml
                         """
@@ -107,7 +106,7 @@ spec:
                             def image_file = "${env.WORKSPACE}/image.yaml"
                             def imageYamlExits = fileExists(file: image_file)
                             if (imageYamlExits){
-                       
+    
                                 def data_info = readFile(file: image_file)
                                 def lines = data_info.readLines()
                                 for (line in lines) {
@@ -128,7 +127,7 @@ spec:
                                         }else {
                                             imagePath = imageName
                                         }
-        
+    
                                     def image = ['name': imageName ,
                                                    'type': 'image' ,
                                                    'version': imageInfotag ,
@@ -144,16 +143,16 @@ spec:
                                 def image_file_contents = readYaml file: image_file  
                                 print(image_file_contents)
                             }
-                            
+    
                         } else  { 
                             print 'config.yaml is not exist'
                         }
                      }else{
                          print 'chart/Chart.yaml not exists'
-                         
+    
                      }
                  }
-               
+    
             } else {
                 print 'app.yaml Configuration error'
             }
@@ -164,7 +163,7 @@ spec:
                     ls chart
                     ls && cat chart/Chart.yaml
                     helm3 version
-                    helm3 package  ./chart
+                    helm3 package --version={{ .chartVersion }} ./chart
                     ls
                  '''
                 if (configYamlExits) {
@@ -192,7 +191,7 @@ spec:
         } else {
           print 'app.yaml does not exist'
         }
-      
+    
     }
 
   arguments:
@@ -221,6 +220,18 @@ spec:
           en: "namespace"
         related: clusterName
       required: true
+    - default: 'v1.0.0'
+      name: chartVersion
+      display:
+        description:
+          zh-CN: chart包版本
+        name:
+          en: Chart Version
+          zh-CN: chart包版本
+        type: string
+      required: true
+      schema:
+        type: string
     - name: imageRepositoryDeploy
       schema:
         type: alauda.io/dockerimagerepositorypullmix
