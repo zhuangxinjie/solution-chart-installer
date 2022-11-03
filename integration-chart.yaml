@@ -9,7 +9,7 @@ metadata:
     description.en: integration-chart
     readme.zh-CN: 构建某一命名空间下的私有chart部署包
     readme.en: integration-chart
-    version: "3.8.14"
+    version: "3.8.15"
   labels:
     category: Build
 spec:
@@ -172,7 +172,7 @@ spec:
                      if (chartYamlExits){
                         def chart_name_file_contents = readYaml file: chart_file 
                         chart_name = chart_name_file_contents.name
-                        chart_version = chart_name_file_contents.version
+                        chart_version = '{{ .chartVersion }}'
                      } else {
                         chart_name = 'solution-chart'
                      }
